@@ -41,4 +41,4 @@ yarn.lock
 pnpm-lock.yaml
 
 # Trae IDE相关
-.trae/
+.trae/documents/
