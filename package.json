@@ -1,0 +1,14 @@
+{
+  "name": "digital-calendar",
+  "version": "1.0.0",
+  "description": "A digital calendar application for both mobile and web platforms",
+  "private": true,
+  "scripts": {
+    "web": "cd web && npm run dev",
+    "mobile": "cd mobile && npm run start",
+    "install:all": "cd web && npm install && cd ../mobile && npm install"
+  },
+  "keywords": ["calendar", "family", "todo", "mobile", "web"],
+  "author": "",
+  "license": "MIT"
+}
