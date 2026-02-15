@@ -606,6 +606,52 @@
 }
 ```
 
+#### 4.6 审批任务
+
+**URL**：`/api/v1/tasks/{id}/approve`
+**方法**：PUT
+**描述**：审批任务完成情况
+**认证**：需要在请求头中包含`Authorization: Bearer <token>`
+**路径参数**：
+- id: 任务ID
+
+**请求体**：
+```json
+{
+  "approved": true,
+  "comment": ""
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "task": {
+      "id": "65a1b2c3d4e5f6g7h8i9j0k4",
+      "title": "完成项目报告",
+      "description": "完成2025年项目报告",
+      "dueDate": "2026-01-15T00:00:00.000Z",
+      "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "creatorId": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
+      "completed": true,
+      "approved": true,
+      "priority": "high",
+      "repeat": "none",
+      "reward": "",
+      "rewardType": "",
+      "points": 10,
+      "punishment": "",
+      "createdAt": "2026-01-10T00:00:00.000Z",
+      "updatedAt": "2026-01-11T00:00:00.000Z"
+    }
+  },
+  "message": "任务审批成功"
+}
+```
+
 ### 5. 家庭共享API
 
 #### 5.1 创建家庭组
@@ -752,6 +798,129 @@
 }
 ```
 
+### 6. 积分管理API
+
+#### 6.1 获取用户积分
+
+**URL**：`/api/v1/points`
+**方法**：GET
+**描述**：获取当前用户的积分信息
+**认证**：需要在请求头中包含`Authorization: Bearer <token>`
+
+**响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "totalPoints": 100,
+    "dailyEarned": 20,
+    "dailyLimit": 50
+  },
+  "message": ""
+}
+```
+
+#### 6.2 获取积分历史
+
+**URL**：`/api/v1/points/history`
+**方法**：GET
+**描述**：获取积分变动历史
+**认证**：需要在请求头中包含`Authorization: Bearer <token>`
+**查询参数**：
+- page: 页码，默认1
+- limit: 每页数量，默认20
+- startDate: 开始日期（格式：YYYY-MM-DD）
+- endDate: 结束日期（格式：YYYY-MM-DD）
+
+**响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "pointsHistory": [
+      {
+        "id": "65a1b2c3d4e5f6g7h8i9j0k6",
+        "taskId": "65a1b2c3d4e5f6g7h8i9j0k4",
+        "points": 10,
+        "type": "earn",
+        "status": "approved",
+        "description": "完成任务：完成项目报告",
+        "createdAt": "2026-01-11T00:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  },
+  "message": ""
+}
+```
+
+#### 6.3 兑换积分
+
+**URL**：`/api/v1/points/redeem`
+**方法**：POST
+**描述**：兑换积分
+**认证**：需要在请求头中包含`Authorization: Bearer <token>`
+
+**请求体**：
+```json
+{
+  "rewardType": "gift",
+  "points": 50,
+  "description": "兑换礼品"
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "transactionId": "65a1b2c3d4e5f6g7h8i9j0k7",
+    "remainingPoints": 50
+  },
+  "message": "积分兑换成功"
+}
+```
+
+#### 6.4 获取兑换选项
+
+**URL**：`/api/v1/points/redeem-options`
+**方法**：GET
+**描述**：获取积分兑换选项
+**认证**：需要在请求头中包含`Authorization: Bearer <token>`
+
+**响应**：
+```json
+{
+  "success": true,
+  "data": {
+    "options": [
+      {
+        "id": "gift",
+        "name": "礼品",
+        "points": 50,
+        "description": "兑换精美礼品"
+      },
+      {
+        "id": "schoolBag",
+        "name": "校包",
+        "points": 100,
+        "description": "兑换优质校包"
+      },
+      {
+        "id": "other",
+        "name": "其他",
+        "points": 20,
+        "description": "其他奖励"
+      }
+    ]
+  },
+  "message": ""
+}
+```
+
 ## 七、错误码定义
 
 | 错误码 | 描述 |
@@ -780,6 +949,7 @@
 
 | 版本 | 更新日期 | 更新内容 |
 |------|----------|----------|
+| v1.1 | 2026-02-09 | 添加任务审批API和积分管理API，支持任务奖励机制和积分系统 |
 | v1.0 | 2026-01-12 | 初始版本，包含认证、用户、日程、任务和家庭共享API |
 
 ## 十、总结
