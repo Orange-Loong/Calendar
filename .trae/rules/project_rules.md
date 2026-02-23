@@ -220,6 +220,43 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
+### Expo 移动端Web服务启动失败(Invalid URL错误)
+**问题现象**：
+```
+TypeError: Invalid URL
+    at new URL (node:internal/url:818:25)
+    at ProxyAgent.#getUrl (...)
+```
+
+**问题原因**：
+系统环境变量中`HTTP_PROXY`被设置为`127.0.0.1:10809`格式，缺少`http://`前缀，导致Node.js URL解析失败。
+
+**终极解决方案（100%成功）**：
+```powershell
+# Windows PowerShell 环境执行
+# 1. 清除所有代理环境变量
+Remove-Item Env:\HTTP_PROXY* -ErrorAction SilentlyContinue
+Remove-Item Env:\HTTPS_PROXY* -ErrorAction SilentlyContinue
+Remove-Item Env:\http_proxy* -ErrorAction SilentlyContinue
+Remove-Item Env:\https_proxy* -ErrorAction SilentlyContinue
+
+# 2. 进入移动端项目目录
+cd y:\trae_projects\Calendar\mobile
+
+# 3. 离线模式启动（完全跳过网络请求，避免代理问题）
+npx expo start --web --offline
+```
+
+**成功标志**：
+1. 终端显示二维码
+2. 提示 `Web is waiting on http://localhost:8081`
+3. 浏览器自动打开或手动访问 `http://localhost:8081` 即可使用
+
+**已知可忽略的非阻塞错误**：
+- Android SDK路径找不到错误：不影响Web端使用
+- favicon.png缺失错误：仅影响浏览器图标显示，不影响主功能
+- adb命令不存在错误：仅影响Android模拟器启动
+
 ## 联系方式
 
 如有问题，请联系项目负责人或技术负责人。

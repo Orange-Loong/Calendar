@@ -324,14 +324,36 @@ const MonthView = ({ date, events, onDateSelect, onEventClick }) => {
   const calendarDays = []
   const daysInGrid = 42 // 6 weeks * 7 days
   
-  for (let i = 0; i < daysInGrid; i++) {
-    const dayIndex = i - firstDayOfWeek + 1
-    const day = new Date(year, month, dayIndex)
-    
+  // Previous month days
+  const prevMonthLastDay = new Date(year, month, 0).getDate()
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    const dayNum = prevMonthLastDay - i
+    const day = new Date(year, month - 1, dayNum)
     calendarDays.push({
       date: day,
-      isCurrentMonth: day.getMonth() === month,
-      dayNumber: dayIndex
+      isCurrentMonth: false,
+      dayNumber: dayNum
+    })
+  }
+  
+  // Current month days
+  for (let i = 1; i <= totalDays; i++) {
+    const day = new Date(year, month, i)
+    calendarDays.push({
+      date: day,
+      isCurrentMonth: true,
+      dayNumber: i
+    })
+  }
+  
+  // Next month days
+  const remainingDays = daysInGrid - calendarDays.length
+  for (let i = 1; i <= remainingDays; i++) {
+    const day = new Date(year, month + 1, i)
+    calendarDays.push({
+      date: day,
+      isCurrentMonth: false,
+      dayNumber: i
     })
   }
   
