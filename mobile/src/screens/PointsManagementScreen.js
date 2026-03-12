@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { Button, Card, Divider, ProgressBar } from 'react-native-paper';
+import { Button, Card, ProgressBar, Avatar, Portal, Dialog, TextInput, SegmentedButtons, Checkbox, Menu, IconButton } from 'react-native-paper';
+import { usePoints } from '../context/PointsContext';
 
-// Sample points history data
-const samplePointsHistory = [
-  { id: '1', task: 'Complete project proposal', points: 10, date: '2026-02-15', status: 'Approved' },
-  { id: '2', task: 'Submit expense report', points: 5, date: '2026-02-14', status: 'Approved' },
-  { id: '3', task: 'Schedule team meeting', points: 3, date: '2026-02-13', status: 'Pending' },
-  { id: '4', task: 'Update project documentation', points: 8, date: '2026-02-12', status: 'Approved' },
-];
-
-// Sample rewards for redemption
 const sampleRewards = [
   { id: '1', name: 'Gift Card', points: 50 },
   { id: '2', name: 'School Bag', points: 100 },
@@ -18,79 +10,390 @@ const sampleRewards = [
   { id: '4', name: 'Electronics', points: 200 },
 ];
 
+const frequencyOptions = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
 export default function PointsManagementScreen() {
-  const [totalPoints, setTotalPoints] = useState(125);
-  const [dailyPoints, setDailyPoints] = useState(15);
-  const [dailyLimit] = useState(20);
-  const [pointsHistory, setPointsHistory] = useState(samplePointsHistory);
+  const { 
+    members, 
+    checkInTasks, 
+    isTaskCompletedToday, 
+    toggleTaskCheckIn, 
+    getMemberTasks, 
+    addCheckInTask, 
+    updateCheckInTask,
+    deleteCheckInTask,
+    getMemberTotalPoints, 
+    getMemberDailyPoints,
+    getMemberDailyTotalPoints,
+    getMemberStreak,
+    getCompletedDatesInPeriod,
+    calculateTaskPoints,
+  } = usePoints();
+  
+  const [selectedMemberId, setSelectedMemberId] = useState(members[0]?.id);
   const [rewards] = useState(sampleRewards);
-  
-  // Calculate daily points percentage
-  const dailyPointsPercentage = (dailyPoints / dailyLimit) * 100;
-  
-  // Handle redeem reward
-  const handleRedeemReward = (rewardId) => {
-    const reward = rewards.find(r => r.id === rewardId);
-    if (reward && totalPoints >= reward.points) {
-      setTotalPoints(totalPoints - reward.points);
-      // In a real app, this would update the database
-      console.log('Redeemed reward:', reward.name);
+  const [addTaskDialogVisible, setAddTaskDialogVisible] = useState(false);
+  const [editTaskDialogVisible, setEditTaskDialogVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskFrequency, setNewTaskFrequency] = useState('daily');
+  const [newTaskPoints, setNewTaskPoints] = useState('5');
+  const [selectedMemberForTask, setSelectedMemberForTask] = useState(members[0]?.id);
+
+  const selectedMember = members.find(m => m.id === selectedMemberId);
+  const memberTasks = selectedMember ? getMemberTasks(selectedMemberId) : [];
+  const memberTotalPoints = selectedMember ? getMemberTotalPoints(selectedMemberId) : 0;
+  const memberBasePoints = selectedMember ? selectedMember.basePoints : 0;
+  const memberCurrentPoints = selectedMember ? selectedMember.currentPoints : 0;
+  const memberDailyPoints = selectedMember ? getMemberDailyPoints(selectedMemberId) : 0;
+  const memberDailyTotalPoints = selectedMember ? getMemberDailyTotalPoints(selectedMemberId) : 0;
+  const memberStreak = selectedMember ? getMemberStreak(selectedMemberId) : 0;
+
+  const getFrequencyLabel = (frequency) => {
+    const labels = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+    return labels[frequency] || frequency;
+  };
+
+  const getTaskProgressText = (task) => {
+    const completedDatesInPeriod = getCompletedDatesInPeriod(task);
+    const completedCount = completedDatesInPeriod.length;
+    const awardedPoints = calculateTaskPoints(task);
+    
+    if (task.frequency === 'daily') {
+      return completedCount > 0 ? `+${task.totalPoints} points` : `+${task.totalPoints} points`;
+    } else if (task.frequency === 'weekly') {
+      return `${completedCount}/7 days (+${awardedPoints}/${task.totalPoints} pts)`;
+    } else if (task.frequency === 'monthly') {
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      return `${completedCount}/${daysInMonth} days (+${awardedPoints}/${task.totalPoints} pts)`;
+    }
+    
+    return `+${task.totalPoints} points`;
+  };
+
+  const getTaskProgress = (task) => {
+    const completedDatesInPeriod = getCompletedDatesInPeriod(task);
+    const completedCount = completedDatesInPeriod.length;
+    
+    if (task.frequency === 'daily') {
+      return completedCount > 0 ? 1 : 0;
+    } else if (task.frequency === 'weekly') {
+      return Math.min(1, completedCount / 7);
+    } else if (task.frequency === 'monthly') {
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      return Math.min(1, completedCount / daysInMonth);
+    }
+    
+    return 0;
+  };
+
+  const handleAddTask = () => {
+    if (newTaskTitle.trim() && selectedMemberForTask && parseInt(newTaskPoints) > 0) {
+      addCheckInTask({
+        title: newTaskTitle.trim(),
+        frequency: newTaskFrequency,
+        totalPoints: parseInt(newTaskPoints),
+        memberId: selectedMemberForTask,
+      });
+      setNewTaskTitle('');
+      setNewTaskFrequency('daily');
+      setNewTaskPoints('5');
+      setSelectedMemberForTask(members[0]?.id);
+      setAddTaskDialogVisible(false);
     }
   };
-  
+
+  const handleEditTask = () => {
+    if (editingTask && newTaskTitle.trim() && parseInt(newTaskPoints) > 0) {
+      updateCheckInTask(editingTask.id, {
+        title: newTaskTitle.trim(),
+        frequency: newTaskFrequency,
+        totalPoints: parseInt(newTaskPoints),
+      });
+      setEditingTask(null);
+      setNewTaskTitle('');
+      setNewTaskFrequency('daily');
+      setNewTaskPoints('5');
+      setEditTaskDialogVisible(false);
+    }
+  };
+
+  const openEditDialog = (task) => {
+    setEditingTask(task);
+    setNewTaskTitle(task.title);
+    setNewTaskFrequency(task.frequency);
+    setNewTaskPoints(task.totalPoints.toString());
+    setEditTaskDialogVisible(true);
+    setMenuVisible(null);
+  };
+
+  const handleDeleteTask = (taskId) => {
+    deleteCheckInTask(taskId);
+    setMenuVisible(null);
+  };
+
   return (
     <ScrollView style={styles.container}>
-      {/* Total Points */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.pointsContainer}>
-            <Text style={styles.pointsLabel}>Total Points</Text>
-            <Text style={styles.totalPoints}>{totalPoints}</Text>
-          </View>
-          
-          {/* Daily Points Progress */}
-          <View style={styles.dailyProgressContainer}>
-            <View style={styles.dailyProgressHeader}>
-              <Text style={styles.dailyPointsLabel}>Daily Points</Text>
-              <Text style={styles.dailyPointsValue}>{dailyPoints}/{dailyLimit}</Text>
-            </View>
-            <ProgressBar 
-              progress={dailyPointsPercentage / 100} 
-              color="#4CAF50" 
-              style={styles.progressBar}
+      <Portal>
+        <Dialog 
+          visible={addTaskDialogVisible} 
+          onDismiss={() => setAddTaskDialogVisible(false)}
+        >
+          <Dialog.Title>Add Check-in Task</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Task Title"
+              value={newTaskTitle}
+              onChangeText={setNewTaskTitle}
+              mode="outlined"
+              style={styles.dialogInput}
+              autoFocus
             />
-            <Text style={styles.dailyLimitText}>
-              Daily limit: {dailyLimit} points
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
-      
-      {/* Points History */}
+            <Text style={styles.label}>Assign to Member</Text>
+            <View style={styles.memberSelector}>
+              {members.map((member) => (
+                <TouchableOpacity
+                  key={member.id}
+                  style={[
+                    styles.memberSelectorItem,
+                    selectedMemberForTask === member.id && styles.memberSelectorItemActive
+                  ]}
+                  onPress={() => setSelectedMemberForTask(member.id)}
+                >
+                  <Avatar.Text 
+                    size={32} 
+                    label={member.avatar} 
+                  />
+                  <Text style={styles.memberSelectorName}>{member.name}</Text>
+                  <Checkbox
+                    status={selectedMemberForTask === member.id ? 'checked' : 'unchecked'}
+                    onPress={() => setSelectedMemberForTask(member.id)}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.label}>Frequency</Text>
+            <SegmentedButtons
+              value={newTaskFrequency}
+              onValueChange={setNewTaskFrequency}
+              buttons={frequencyOptions}
+              style={styles.segmentedButtons}
+            />
+            <TextInput
+              label="Points"
+              value={newTaskPoints}
+              onChangeText={setNewTaskPoints}
+              keyboardType="numeric"
+              mode="outlined"
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setAddTaskDialogVisible(false)}>Cancel</Button>
+            <Button 
+              onPress={handleAddTask} 
+              disabled={!newTaskTitle.trim() || !newTaskPoints || parseInt(newTaskPoints) <= 0}
+            >
+              Add
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog 
+          visible={editTaskDialogVisible} 
+          onDismiss={() => setEditTaskDialogVisible(false)}
+        >
+          <Dialog.Title>Edit Check-in Task</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Task Title"
+              value={newTaskTitle}
+              onChangeText={setNewTaskTitle}
+              mode="outlined"
+              style={styles.dialogInput}
+              autoFocus
+            />
+            <Text style={styles.label}>Frequency</Text>
+            <SegmentedButtons
+              value={newTaskFrequency}
+              onValueChange={setNewTaskFrequency}
+              buttons={frequencyOptions}
+              style={styles.segmentedButtons}
+            />
+            <TextInput
+              label="Points"
+              value={newTaskPoints}
+              onChangeText={setNewTaskPoints}
+              keyboardType="numeric"
+              mode="outlined"
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setEditTaskDialogVisible(false)}>Cancel</Button>
+            <Button 
+              onPress={handleEditTask} 
+              disabled={!newTaskTitle.trim() || !newTaskPoints || parseInt(newTaskPoints) <= 0}
+            >
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <Card style={styles.card}>
         <Card.Content>
-          <Text style={styles.sectionTitle}>Points History</Text>
-          
-          {pointsHistory.map((item) => (
-            <View key={item.id} style={styles.historyItem}>
-              <View style={styles.historyItemLeft}>
-                <Text style={styles.historyTask}>{item.task}</Text>
-                <Text style={styles.historyDate}>{item.date}</Text>
-              </View>
-              <View style={styles.historyItemRight}>
-                <Text style={[styles.historyPoints, item.status === 'Approved' ? styles.pointsApproved : styles.pointsPending]}>
-                  {item.status === 'Approved' ? '+' : ''}{item.points}
+          <Text style={styles.sectionTitle}>Family Members</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberList}>
+            {members.map((member) => (
+              <TouchableOpacity
+                key={member.id}
+                style={[
+                  styles.memberItem,
+                  selectedMemberId === member.id && styles.memberItemActive
+                ]}
+                onPress={() => setSelectedMemberId(member.id)}
+              >
+                <Avatar.Text 
+                  size={48} 
+                  label={member.avatar} 
+                  style={styles.memberAvatar}
+                />
+                <Text style={[
+                  styles.memberName,
+                  selectedMemberId === member.id && styles.memberNameActive
+                ]}>
+                  {member.name}
                 </Text>
-                <Text style={[styles.historyStatus, item.status === 'Approved' ? styles.statusApproved : styles.statusPending]}>
-                  {item.status}
+                <Text style={[
+                  styles.memberPoints,
+                  selectedMemberId === member.id && styles.memberPointsActive
+                ]}>
+                  {member.basePoints + member.currentPoints} pts
                 </Text>
-              </View>
-            </View>
-          ))}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </Card.Content>
       </Card>
-      
-      {/* Rewards */}
+
+      {selectedMember && (
+        <>
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.pointsContainer}>
+                <Text style={styles.pointsLabel}>Total Points</Text>
+                <Text style={styles.totalPoints}>{memberTotalPoints}</Text>
+                <View style={styles.pointsBreakdown}>
+                  <Text style={styles.pointsBreakdownText}>Base: {memberBasePoints}</Text>
+                  <Text style={styles.pointsBreakdownText}>Current: {memberCurrentPoints}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.dailyProgressContainer}>
+                <View style={styles.dailyProgressHeader}>
+                  <Text style={styles.dailyPointsLabel}>Today's Progress</Text>
+                  <Text style={styles.dailyPointsValue}>{memberDailyPoints}/{memberDailyTotalPoints}</Text>
+                </View>
+                <ProgressBar 
+                  progress={memberDailyTotalPoints > 0 ? memberDailyPoints / memberDailyTotalPoints : 0} 
+                  color="#4CAF50" 
+                  style={styles.dailyProgressBar}
+                />
+                <Text style={styles.dailyLimitText}>
+                  Daily tasks completed today
+                </Text>
+              </View>
+
+              <View style={styles.streakContainer}>
+                <Text style={styles.streakLabel}>Current Streak</Text>
+                <Text style={styles.streakValue}>{memberStreak} days 🔥</Text>
+              </View>
+            </Card.Content>
+          </Card>
+
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Check-in Tasks</Text>
+                <Button 
+                  mode="contained" 
+                  icon="plus"
+                  compact
+                  onPress={() => setAddTaskDialogVisible(true)}
+                >
+                  Add Task
+                </Button>
+              </View>
+              
+              {memberTasks.length === 0 ? (
+                <Text style={styles.emptyText}>No check-in tasks yet. Add one to get started!</Text>
+              ) : (
+                memberTasks.map((task) => (
+                  <View key={task.id} style={styles.taskItem}>
+                    <View style={styles.taskInfo}>
+                      <View style={styles.taskHeader}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <View style={styles.frequencyBadge}>
+                          <Text style={styles.frequencyText}>{getFrequencyLabel(task.frequency)}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.taskPoints}>{getTaskProgressText(task)}</Text>
+                      {task.frequency !== 'daily' && (
+                        <ProgressBar 
+                          progress={getTaskProgress(task)} 
+                          color="#6750A4" 
+                          style={styles.taskProgressBar}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.taskActions}>
+                      <TouchableOpacity
+                        style={[
+                          styles.checkInButton,
+                          isTaskCompletedToday(task) && styles.checkInButtonCompleted
+                        ]}
+                        onPress={() => toggleTaskCheckIn(task.id)}
+                      >
+                        <Text style={[
+                          styles.checkInButtonText,
+                          isTaskCompletedToday(task) && styles.checkInButtonTextCompleted
+                        ]}>
+                          {isTaskCompletedToday(task) ? 'Done' : 'Check In'}
+                        </Text>
+                      </TouchableOpacity>
+                      <Menu
+                        visible={menuVisible === task.id}
+                        onDismiss={() => setMenuVisible(null)}
+                        anchor={
+                          <TouchableOpacity onPress={() => setMenuVisible(task.id)} style={styles.menuButton}>
+                            <IconButton
+                              icon="dots-vertical"
+                              size={20}
+                              iconColor="#666666"
+                            />
+                          </TouchableOpacity>
+                        }
+                      >
+                        <Menu.Item onPress={() => openEditDialog(task)} title="Edit" />
+                        <Menu.Item onPress={() => handleDeleteTask(task.id)} title="Delete" />
+                      </Menu>
+                    </View>
+                  </View>
+                ))
+              )}
+            </Card.Content>
+          </Card>
+        </>
+      )}
+
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Rewards</Text>
@@ -104,38 +407,13 @@ export default function PointsManagementScreen() {
               <Button 
                 mode="contained" 
                 style={styles.redeemButton}
-                onPress={() => handleRedeemReward(reward.id)}
-                disabled={totalPoints < reward.points}
+                onPress={() => {}}
+                disabled={!selectedMember || memberTotalPoints < reward.points}
               >
                 Redeem
               </Button>
             </View>
           ))}
-        </Card.Content>
-      </Card>
-      
-      {/* Points Management Tips */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.sectionTitle}>Points Management Tips</Text>
-          <View style={styles.tipItem}>
-            <Text style={styles.tipIcon}>💡</Text>
-            <Text style={styles.tipText}>
-              Complete daily tasks to earn consistent points
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Text style={styles.tipIcon}>🎯</Text>
-            <Text style={styles.tipText}>
-              Focus on high-point tasks for faster rewards
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Text style={styles.tipIcon}>⏰</Text>
-            <Text style={styles.tipText}>
-              Check daily to maximize your point earnings
-            </Text>
-          </View>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -148,26 +426,93 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   card: {
-    margin: 16,
+    marginBottom: 16,
+    marginHorizontal: 16,
     borderRadius: 12,
-    elevation: 2,
+    elevation: 1,
   },
-  pointsContainer: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  pointsLabel: {
-    fontSize: 16,
-    color: '#666666',
+  memberList: {
     marginBottom: 8,
   },
-  totalPoints: {
-    fontSize: 48,
+  memberItem: {
+    alignItems: 'center',
+    padding: 12,
+    marginRight: 12,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+    minWidth: 80,
+  },
+  memberItemActive: {
+    backgroundColor: '#007AFF',
+  },
+  memberAvatar: {
+    backgroundColor: '#6750A4',
+  },
+  memberName: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  memberNameActive: {
+    color: '#ffffff',
     fontWeight: 'bold',
-    color: '#4CAF50',
+  },
+  memberPoints: {
+    fontSize: 10,
+    color: '#666666',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  memberPointsActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  pointsContainer: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  pointsLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  totalPoints: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  pointsBreakdown: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  pointsBreakdownText: {
+    fontSize: 14,
+    color: '#666666',
   },
   dailyProgressContainer: {
-    marginTop: 20,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   dailyProgressHeader: {
     flexDirection: 'row',
@@ -180,66 +525,114 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   dailyPointsValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#333333',
   },
-  progressBar: {
-    height: 12,
-    borderRadius: 6,
+  dailyProgressBar: {
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 4,
   },
   dailyLimitText: {
     fontSize: 12,
     color: '#999999',
-    marginTop: 8,
+    textAlign: 'center',
   },
-  sectionTitle: {
-    fontSize: 16,
+  streakContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  streakLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  streakValue: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 16,
+    color: '#FF5722',
   },
-  historyItem: {
+  emptyText: {
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  taskItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  historyItemLeft: {
+  taskInfo: {
     flex: 1,
+    marginRight: 12,
   },
-  historyTask: {
-    fontSize: 14,
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  taskTitle: {
+    fontSize: 16,
     fontWeight: '500',
     color: '#333333',
-    marginBottom: 4,
+    marginRight: 8,
+    flex: 1,
   },
-  historyDate: {
-    fontSize: 12,
-    color: '#666666',
+  frequencyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#E8DEF8',
   },
-  historyItemRight: {
-    alignItems: 'flex-end',
-  },
-  historyPoints: {
-    fontSize: 16,
+  frequencyText: {
+    fontSize: 10,
+    color: '#6750A4',
     fontWeight: 'bold',
-    marginBottom: 4,
   },
-  pointsApproved: {
+  menuButton: {
+    padding: 4,
+  },
+  taskPoints: {
+    fontSize: 14,
     color: '#4CAF50',
+    fontWeight: '500',
+    marginBottom: 8,
   },
-  pointsPending: {
-    color: '#FFC107',
+  taskProgressBar: {
+    height: 6,
+    borderRadius: 3,
   },
-  historyStatus: {
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkInButton: {
+    width: 90,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#6750A4',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkInButtonCompleted: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  checkInButtonText: {
     fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6750A4',
   },
-  statusApproved: {
-    color: '#4CAF50',
-  },
-  statusPending: {
-    color: '#FFC107',
+  checkInButtonTextCompleted: {
+    color: '#ffffff',
   },
   rewardItem: {
     flexDirection: 'row',
@@ -263,17 +656,35 @@ const styles = StyleSheet.create({
   redeemButton: {
     marginLeft: 16,
   },
-  tipItem: {
+  dialogInput: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  segmentedButtons: {
+    marginBottom: 16,
+  },
+  memberSelector: {
+    flexDirection: 'column',
+    marginBottom: 16,
+  },
+  memberSelectorItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
-  tipIcon: {
-    fontSize: 20,
-    marginRight: 12,
+  memberSelectorItemActive: {
+    backgroundColor: '#007AFF',
   },
-  tipText: {
+  memberSelectorName: {
     flex: 1,
+    marginLeft: 12,
     fontSize: 14,
     color: '#333333',
   },

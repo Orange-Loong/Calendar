@@ -1,35 +1,56 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { Button, Card, Switch, Divider, Avatar } from 'react-native-paper';
-
-// Sample family members data
-const sampleFamilyMembers = [
-  { id: '1', name: 'John Doe', role: 'Admin', avatar: 'JD' },
-  { id: '2', name: 'Jane Smith', role: 'Member', avatar: 'JS' },
-  { id: '3', name: 'Tom Doe', role: 'Member', avatar: 'TD' },
-  { id: '4', name: 'Lisa Doe', role: 'Member', avatar: 'LD' },
-];
+import { View, StyleSheet, ScrollView, Text } from 'react-native';
+import { Button, Card, Switch, Divider, Avatar, TextInput, Portal, Dialog } from 'react-native-paper';
+import { useFamily } from '../context/FamilyContext';
 
 export default function FamilySharingScreen() {
-  const [familyMembers, setFamilyMembers] = useState(sampleFamilyMembers);
-  const [shareCalendar, setShareCalendar] = useState(true);
-  const [shareTasks, setShareTasks] = useState(true);
-  const [sharePoints, setSharePoints] = useState(false);
+  const { 
+    familyMembers, 
+    shareCalendar, 
+    shareTasks, 
+    sharePoints,
+    setShareCalendar,
+    setShareTasks,
+    setSharePoints,
+    inviteMember,
+    removeMember,
+  } = useFamily();
   
-  // Handle invite member
+  const [inviteDialogVisible, setInviteDialogVisible] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+
   const handleInviteMember = () => {
-    // In a real app, this would open an invite dialog
-    console.log('Invite member');
-  };
-  
-  // Handle remove member
-  const handleRemoveMember = (memberId) => {
-    setFamilyMembers(familyMembers.filter(member => member.id !== memberId));
+    if (inviteName.trim()) {
+      inviteMember(inviteName.trim());
+      setInviteName('');
+      setInviteDialogVisible(false);
+    }
   };
   
   return (
     <ScrollView style={styles.container}>
-      {/* Family Members */}
+      <Portal>
+        <Dialog 
+          visible={inviteDialogVisible} 
+          onDismiss={() => setInviteDialogVisible(false)}
+        >
+          <Dialog.Title>Invite Family Member</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Name"
+              value={inviteName}
+              onChangeText={setInviteName}
+              mode="outlined"
+              autoFocus
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setInviteDialogVisible(false)}>Cancel</Button>
+            <Button onPress={handleInviteMember} disabled={!inviteName.trim()}>Invite</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.sectionHeader}>
@@ -37,7 +58,7 @@ export default function FamilySharingScreen() {
             <Button 
               mode="contained" 
               style={styles.inviteButton}
-              onPress={handleInviteMember}
+              onPress={() => setInviteDialogVisible(true)}
             >
               Invite
             </Button>
@@ -60,7 +81,7 @@ export default function FamilySharingScreen() {
                 <Button 
                   mode="text" 
                   style={styles.removeButton}
-                  onPress={() => handleRemoveMember(member.id)}
+                  onPress={() => removeMember(member.id)}
                 >
                   Remove
                 </Button>
@@ -70,7 +91,6 @@ export default function FamilySharingScreen() {
         </Card.Content>
       </Card>
       
-      {/* Sharing Settings */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Sharing Settings</Text>
@@ -117,7 +137,6 @@ export default function FamilySharingScreen() {
         </Card.Content>
       </Card>
       
-      {/* Family Code */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Family Code</Text>

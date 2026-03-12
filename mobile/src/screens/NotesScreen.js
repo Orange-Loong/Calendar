@@ -1,26 +1,21 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Card, IconButton } from 'react-native-paper';
-
-const sampleNotes = [
-  { id: '1', title: 'Meeting Notes', content: 'Discussed project timeline and deliverables. Team agreed on Q1 goals.', date: '2026-02-20', category: 'Work' },
-  { id: '2', title: 'Shopping List', content: 'Milk, Bread, Eggs, Apples, Chicken, Rice, Vegetables', date: '2026-02-19', category: 'Personal' },
-  { id: '3', title: 'Book Recommendations', content: '1. Atomic Habits\n2. Deep Work\n3. The Pragmatic Programmer', date: '2026-02-18', category: 'Reading' },
-  { id: '4', title: 'Travel Plans', content: 'Plan trip to Japan: Tokyo, Kyoto, Osaka. Budget: $3000', date: '2026-02-17', category: 'Travel' },
-  { id: '5', title: 'Recipe: Pasta Carbonara', content: 'Ingredients: Pasta, Eggs, Bacon, Cheese, Black Pepper', date: '2026-02-15', category: 'Cooking' },
-];
+import { Button, Card, IconButton, Menu, Portal } from 'react-native-paper';
+import { useNotes } from '../context/NotesContext';
 
 const categories = ['All', 'Work', 'Personal', 'Reading', 'Travel', 'Cooking'];
 
 export default function NotesScreen() {
   const navigation = useNavigation();
+  const { notes, deleteNote } = useNotes();
   const [filter, setFilter] = useState('All');
-  const [notes, setNotes] = useState(sampleNotes);
   const [expandedNoteId, setExpandedNoteId] = useState(null);
+  const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
 
   const handleFilterChange = (category) => {
     setFilter(category);
+    setCategoryMenuVisible(false);
   };
 
   const filteredNotes = notes.filter(note => {
@@ -33,6 +28,15 @@ export default function NotesScreen() {
   };
 
   const handleAddNote = () => {
+    navigation.navigate('NoteDetail');
+  };
+
+  const handleEditNote = (noteId) => {
+    navigation.navigate('NoteDetail', { noteId });
+  };
+
+  const handleDeleteNote = (noteId) => {
+    deleteNote(noteId);
   };
 
   const getCategoryColor = (category) => {
@@ -48,19 +52,31 @@ export default function NotesScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[styles.categoryButton, filter === category && styles.categoryButtonActive]}
-            onPress={() => handleFilterChange(category)}
-          >
-            <Text style={[styles.categoryButtonText, filter === category && styles.categoryButtonTextActive]}>
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.categoryContainer}>
+        <Menu
+          visible={categoryMenuVisible}
+          onDismiss={() => setCategoryMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              style={styles.categoryDropdown}
+              onPress={() => setCategoryMenuVisible(true)}
+            >
+              <Text style={styles.categoryDropdownText}>{filter}</Text>
+              <Text style={styles.categoryDropdownIcon}>▼</Text>
+            </TouchableOpacity>
+          }
+          contentStyle={styles.menuContent}
+        >
+          {categories.map((category) => (
+            <Menu.Item
+              key={category}
+              onPress={() => handleFilterChange(category)}
+              title={category}
+              titleStyle={styles.menuItemTitle}
+            />
+          ))}
+        </Menu>
+      </View>
 
       <ScrollView style={styles.notesListContainer}>
         {filteredNotes.length === 0 ? (
@@ -96,12 +112,12 @@ export default function NotesScreen() {
                     <IconButton
                       icon="pencil"
                       size={20}
-                      onPress={() => {}}
+                      onPress={() => handleEditNote(note.id)}
                     />
                     <IconButton
                       icon="delete"
                       size={20}
-                      onPress={() => {}}
+                      onPress={() => handleDeleteNote(note.id)}
                     />
                   </View>
                 )}
@@ -131,33 +147,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   categoryContainer: {
-    maxHeight: 56,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  categoryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginHorizontal: 4,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    minHeight: 36,
+  categoryDropdown: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    minHeight: 44,
   },
-  categoryButtonActive: {
-    backgroundColor: '#007AFF',
+  categoryDropdownText: {
+    fontSize: 16,
+    color: '#333333',
+    fontWeight: '500',
   },
-  categoryButtonText: {
-    fontSize: 14,
+  categoryDropdownIcon: {
+    fontSize: 12,
     color: '#666666',
   },
-  categoryButtonTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+  menuContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    maxWidth: 200,
+  },
+  menuItemTitle: {
+    color: '#333333',
+    fontSize: 14,
   },
   notesListContainer: {
     flex: 1,

@@ -1,49 +1,36 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Card, Divider, IconButton } from 'react-native-paper';
-
-// Sample tasks data
-const sampleTasks = [
-  { id: '1', title: 'Complete project proposal', completed: false, dueDate: '2026-02-18' },
-  { id: '2', title: 'Submit expense report', completed: true, dueDate: '2026-02-16' },
-  { id: '3', title: 'Schedule team meeting', completed: false, dueDate: '2026-02-17' },
-  { id: '4', title: 'Update project documentation', completed: false, dueDate: '2026-02-20' },
-  { id: '5', title: 'Review code changes', completed: true, dueDate: '2026-02-15' },
-];
+import { Button, Card, Divider, IconButton, Menu } from 'react-native-paper';
+import { useTasks } from '../context/TasksContext';
 
 export default function TaskListScreen() {
   const navigation = useNavigation();
-  const [filter, setFilter] = useState('all'); // all, completed, pending
-  const [tasks, setTasks] = useState(sampleTasks);
+  const { tasks, toggleTask, deleteTask } = useTasks();
+  const [filter, setFilter] = useState('all');
+  const [menuVisible, setMenuVisible] = useState(null);
   
-  // Handle filter change
   const handleFilterChange = (newFilter) => {
     setFilter(newFilter);
   };
   
-  // Handle task toggle
-  const handleTaskToggle = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
-  };
-  
-  // Handle add task
   const handleAddTask = () => {
     navigation.navigate('TaskDetail');
   };
   
-  // Filter tasks
   const filteredTasks = tasks.filter(task => {
     if (filter === 'completed') return task.completed;
     if (filter === 'pending') return !task.completed;
     return true;
   });
   
+  const handleDeleteTask = (taskId) => {
+    deleteTask(taskId);
+    setMenuVisible(null);
+  };
+  
   return (
     <View style={styles.container}>
-      {/* Filter Buttons */}
       <View style={styles.filterContainer}>
         <TouchableOpacity 
           style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
@@ -71,7 +58,6 @@ export default function TaskListScreen() {
         </TouchableOpacity>
       </View>
       
-      {/* Task List */}
       <ScrollView style={styles.taskListContainer}>
         {filteredTasks.length === 0 ? (
           <Card style={styles.emptyCard}>
@@ -87,7 +73,7 @@ export default function TaskListScreen() {
                 <View style={styles.taskItem}>
                   <TouchableOpacity 
                     style={styles.taskCheckbox}
-                    onPress={() => handleTaskToggle(task.id)}
+                    onPress={() => toggleTask(task.id)}
                   >
                     <Text style={styles.taskCheckboxText}>
                       {task.completed ? '✓' : ' '}
@@ -97,8 +83,19 @@ export default function TaskListScreen() {
                     <Text style={[styles.taskTitle, task.completed && styles.taskCompleted]}>
                       {task.title}
                     </Text>
-                    <Text style={styles.taskDueDate}>Due: {task.dueDate}</Text>
+                    <Text style={styles.taskDueDate}>Due: {task.endDate}</Text>
                   </View>
+                  <Menu
+                    visible={menuVisible === task.id}
+                    onDismiss={() => setMenuVisible(null)}
+                    anchor={
+                      <TouchableOpacity onPress={() => setMenuVisible(task.id)} style={styles.menuButton}>
+                        <Text style={styles.menuIcon}>⋮</Text>
+                      </TouchableOpacity>
+                    }
+                  >
+                    <Menu.Item onPress={() => handleDeleteTask(task.id)} title="Delete" />
+                  </Menu>
                 </View>
               </Card.Content>
             </Card>
@@ -106,7 +103,6 @@ export default function TaskListScreen() {
         )}
       </ScrollView>
       
-      {/* Add Task Button */}
       <View style={styles.addTaskContainer}>
         <Button 
           mode="contained" 
@@ -198,6 +194,14 @@ const styles = StyleSheet.create({
   },
   taskDueDate: {
     fontSize: 14,
+    color: '#666666',
+  },
+  menuButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  menuIcon: {
+    fontSize: 20,
     color: '#666666',
   },
   emptyCard: {
