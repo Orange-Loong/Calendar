@@ -4,7 +4,7 @@ import { TextInput, Button, Card, SegmentedButtons } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useNotes } from '../context/NotesContext';
 
-const categories = ['Work', 'Personal', 'Reading', 'Travel', 'Cooking'];
+const categories = ['Meal', 'Grocery'];
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -22,7 +22,7 @@ export default function NoteDetailScreen() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('Work');
+  const [category, setCategory] = useState('Meal');
 
   useEffect(() => {
     if (noteId) {
@@ -100,7 +100,7 @@ export default function NoteDetailScreen() {
               onPress={handleSave}
               style={styles.saveButton}
             >
-              {noteId ? 'Update Note' : 'Save Note'}
+              {noteId ? 'Update' : 'Save'}
             </Button>
           </Card.Content>
         </Card>

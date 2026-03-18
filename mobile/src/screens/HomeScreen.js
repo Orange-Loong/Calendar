@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import { Button, Card } from 'react-native-paper';
 import { useTasks } from '../context/TasksContext';
+import { useNotes } from '../context/NotesContext';
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -11,95 +12,136 @@ const formatDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const getDaysBetween = (date1, date2) => {
-  const oneDay = 24 * 60 * 60 * 1000;
-  const firstDate = new Date(date1);
-  const secondDate = new Date(date2);
-  return Math.round((secondDate - firstDate) / oneDay);
-};
-
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { tasks, toggleTask } = useTasks();
+  const { notes } = useNotes();
   const today = formatDate(new Date());
 
-  const getTasksByTimeframe = () => {
-    const todayTasks = [];
-    const threeDaysTasks = [];
-    const sevenDaysTasks = [];
+  const getTodayItemsByType = () => {
+    const taskItems = tasks
+      .filter(task => task.endDate === today && (task.taskType === 'task' || !task.taskType))
+      .map(task => ({ ...task, type: 'task' }));
 
-    tasks.forEach(task => {
-      const daysUntil = getDaysBetween(today, task.endDate);
-      if (daysUntil === 0) {
-        todayTasks.push(task);
-      } else if (daysUntil > 0 && daysUntil <= 3) {
-        threeDaysTasks.push(task);
-      } else if (daysUntil > 3 && daysUntil <= 7) {
-        sevenDaysTasks.push(task);
-      }
-    });
+    const scheduleItems = tasks
+      .filter(task => {
+        if (task.taskType !== 'schedule') return false;
+        const startDate = task.startDate || task.endDate;
+        const endDate = task.endDate;
+        const targetDate = new Date(today);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (targetDate < start || targetDate > end) return false;
+        
+        if (task.recurrence === 'weekly') {
+          return targetDate.getDay() === start.getDay();
+        } else if (task.recurrence === 'monthly') {
+          return targetDate.getDate() === start.getDate();
+        } else {
+          return true;
+        }
+      })
+      .map(task => ({ ...task, type: 'schedule' }));
 
-    return { todayTasks, threeDaysTasks, sevenDaysTasks };
+    const noteItems = notes
+      .filter(note => note.date === today)
+      .map(note => ({ ...note, type: 'note' }));
+
+    return {
+      tasks: taskItems,
+      schedules: scheduleItems,
+      notes: noteItems,
+    };
   };
 
-  const { todayTasks, threeDaysTasks, sevenDaysTasks } = getTasksByTimeframe();
+  const { tasks: todayTasks, schedules, notes: todayNotes } = getTodayItemsByType();
 
-  const renderTaskItem = (task) => (
-    <TouchableOpacity 
-      key={task.id} 
-      style={styles.taskItem}
-      onPress={() => navigation.navigate('TaskDetailView', { taskId: task.id })}
-    >
-      <TouchableOpacity 
-        style={styles.taskCheckbox}
-        onPress={() => toggleTask(task.id)}
-      >
-        <Text style={styles.taskCheckboxText}>
-          {task.completed ? '✓' : ' '}
-        </Text>
-      </TouchableOpacity>
-      <View style={styles.taskContent}>
-        <Text style={[styles.taskTitle, task.completed && styles.taskCompleted]}>
-          {task.title}
-          {task.isRecurring && <Text style={styles.recurringTag}> ⟳</Text>}
-        </Text>
-        <Text style={styles.taskDate}>
-          {task.startDate === task.endDate ? task.endDate : `${task.startDate} - ${task.endDate}`}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderSection = (title, items, color) => {
+    if (items.length === 0) return null;
 
-  const renderSection = (title, tasks) => {
-    if (tasks.length === 0) return null;
-    
     return (
-      <Card style={styles.sectionCard}>
-        <Card.Content>
+      <View style={styles.section}>
+        <View style={[styles.sectionHeader, { backgroundColor: color }]}>
           <Text style={styles.sectionTitle}>{title}</Text>
-          {tasks.map(renderTaskItem)}
-        </Card.Content>
-      </Card>
+          <Text style={styles.sectionCount}>{items.length}</Text>
+        </View>
+        {items.map((item) => (
+          <TouchableOpacity
+            key={`${item.type}-${item.id}`}
+            style={styles.itemContainer}
+            onPress={() => {
+              if (item.type === 'note') {
+                navigation.navigate('TaskDetailView', { noteId: item.id });
+              } else {
+                navigation.navigate('TaskDetailView', { taskId: item.id });
+              }
+            }}
+          >
+            {item.type === 'task' && (
+              <TouchableOpacity
+                style={styles.taskCheckbox}
+                onPress={() => toggleTask(item.id)}
+              >
+                <Text style={styles.taskCheckboxText}>
+                  {item.completed ? '✓' : ' '}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.itemContent}>
+              <View style={styles.itemHeader}>
+                <Text style={[styles.itemTitle, item.completed && styles.itemCompleted]}>
+                  {item.title}
+                </Text>
+                {item.type === 'schedule' && item.isRecurring && (
+                  <Text style={styles.recurringTag}>⟳ {item.recurrence}</Text>
+                )}
+              </View>
+              {item.type === 'note' && (
+                <Text style={styles.itemContentText} numberOfLines={2}>
+                  {item.content}
+                </Text>
+              )}
+              {item.startTime && (
+                <Text style={styles.itemTime}>⏰ {item.startTime}</Text>
+              )}
+              {item.type === 'task' && item.completed && (
+                <Text style={styles.completedTag}>✓ Completed</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
     );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Tasks</Text>
+        <Text style={styles.headerTitle}>Today</Text>
+        <Text style={styles.headerDate}>{today}</Text>
       </View>
 
       <ScrollView style={styles.content}>
-        {renderSection('Today', todayTasks)}
-        {renderSection('Next 3 Days', threeDaysTasks)}
-        {renderSection('This Week', sevenDaysTasks)}
-        
+        {renderSection('Tasks', todayTasks, '#6750A4')}
+        {renderSection('Schedules', schedules, '#FF9800')}
+        {renderSection('Notes', todayNotes, '#4CAF50')}
+
+        {todayTasks.length === 0 && schedules.length === 0 && todayNotes.length === 0 && (
+          <Card style={styles.emptyCard}>
+            <Card.Content>
+              <Text style={styles.emptyText}>No items for today</Text>
+              <Text style={styles.emptySubText}>Add tasks, schedules, or notes</Text>
+            </Card.Content>
+          </Card>
+        )}
+
         <View style={styles.spacer} />
       </ScrollView>
 
       <View style={styles.addButtonContainer}>
-        <Button 
-          mode="contained" 
+        <Button
+          mode="contained"
           style={styles.addButton}
           icon="plus"
           onPress={() => navigation.navigate('TaskDetail')}
@@ -127,25 +169,45 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333333',
   },
+  headerDate: {
+    fontSize: 16,
+    color: '#666666',
+    marginTop: 4,
+  },
   content: {
     flex: 1,
     padding: 16,
   },
-  sectionCard: {
+  section: {
     marginBottom: 16,
-    borderRadius: 12,
-    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 12,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
-  taskItem: {
+  sectionCount: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.9,
+  },
+  itemContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   taskCheckbox: {
     width: 24,
@@ -162,25 +224,64 @@ const styles = StyleSheet.create({
     color: '#6750A4',
     fontWeight: 'bold',
   },
-  taskContent: {
+  itemContent: {
     flex: 1,
   },
-  taskTitle: {
-    fontSize: 16,
-    color: '#333333',
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  taskDate: {
-    fontSize: 12,
-    color: '#999999',
+  itemTitle: {
+    fontSize: 16,
+    color: '#333333',
+    flex: 1,
   },
-  taskCompleted: {
+  itemCompleted: {
     textDecorationLine: 'line-through',
     color: '#999999',
   },
   recurringTag: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6750A4',
+    marginLeft: 8,
+  },
+  completedTag: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginTop: 4,
+  },
+  itemContentText: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 4,
+  },
+  itemTime: {
+    fontSize: 12,
+    color: '#999999',
+    marginTop: 4,
+  },
+  emptyCard: {
+    marginTop: 48,
+    paddingVertical: 48,
+    borderRadius: 12,
+    elevation: 1,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  spacer: {
+    height: 80,
   },
   addButtonContainer: {
     padding: 16,
@@ -192,8 +293,5 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 8,
     backgroundColor: '#D0BCFF',
-  },
-  spacer: {
-    height: 20,
   },
 });

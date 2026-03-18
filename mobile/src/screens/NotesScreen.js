@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Card, IconButton, Menu, Portal } from 'react-native-paper';
-import { useNotes } from '../context/NotesContext';
+import { useMeals } from '../context/MealContext';
 
-const categories = ['All', 'Work', 'Personal', 'Reading', 'Travel', 'Cooking'];
+const categories = ['All', 'Meal', 'Grocery'];
 
 export default function NotesScreen() {
   const navigation = useNavigation();
-  const { notes, deleteNote } = useNotes();
+  const { meals, deleteMeal } = useMeals();
   const [filter, setFilter] = useState('All');
-  const [expandedNoteId, setExpandedNoteId] = useState(null);
+  const [expandedMealId, setExpandedMealId] = useState(null);
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
 
   const handleFilterChange = (category) => {
@@ -18,40 +18,41 @@ export default function NotesScreen() {
     setCategoryMenuVisible(false);
   };
 
-  const filteredNotes = notes.filter(note => {
+  const filteredMeals = meals.filter(meal => {
     if (filter === 'All') return true;
-    return note.category === filter;
+    return meal.category === filter;
   });
 
-  const handleNotePress = (noteId) => {
-    setExpandedNoteId(expandedNoteId === noteId ? null : noteId);
+  const handleMealPress = (mealId) => {
+    setExpandedMealId(expandedMealId === mealId ? null : mealId);
   };
 
-  const handleAddNote = () => {
-    navigation.navigate('NoteDetail');
+  const handleAddMeal = () => {
+    navigation.navigate('MealDetail');
   };
 
-  const handleEditNote = (noteId) => {
-    navigation.navigate('NoteDetail', { noteId });
+  const handleEditMeal = (mealId) => {
+    navigation.navigate('MealDetail', { mealId });
   };
 
-  const handleDeleteNote = (noteId) => {
-    deleteNote(noteId);
+  const handleDeleteMeal = (mealId) => {
+    deleteMeal(mealId);
   };
 
   const getCategoryColor = (category) => {
     const colors = {
-      'Work': '#4CAF50',
-      'Personal': '#2196F3',
-      'Reading': '#FF9800',
-      'Travel': '#9C27B0',
-      'Cooking': '#F44336',
+      'Meal': '#4CAF50',
+      'Grocery': '#2196F3',
     };
     return colors[category] || '#607D8B';
   };
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Meal&Grocery</Text>
+      </View>
+
       <View style={styles.categoryContainer}>
         <Menu
           visible={categoryMenuVisible}
@@ -78,46 +79,46 @@ export default function NotesScreen() {
         </Menu>
       </View>
 
-      <ScrollView style={styles.notesListContainer}>
-        {filteredNotes.length === 0 ? (
+      <ScrollView style={styles.mealsListContainer}>
+        {filteredMeals.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Card.Content>
-              <Text style={styles.emptyText}>No notes found.</Text>
-              <Text style={styles.emptySubText}>Add a new note to get started.</Text>
+              <Text style={styles.emptyText}>No items found.</Text>
+              <Text style={styles.emptySubText}>Add a meal or grocery item to get started.</Text>
             </Card.Content>
           </Card>
         ) : (
-          filteredNotes.map((note) => (
+          filteredMeals.map((meal) => (
             <Card 
-              key={note.id} 
-              style={styles.noteCard}
-              onPress={() => handleNotePress(note.id)}
+              key={meal.id} 
+              style={styles.mealCard}
+              onPress={() => handleMealPress(meal.id)}
             >
               <Card.Content>
-                <View style={styles.noteHeader}>
-                  <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(note.category) }]}>
-                    <Text style={styles.categoryBadgeText}>{note.category}</Text>
+                <View style={styles.mealHeader}>
+                  <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(meal.category) }]}>
+                    <Text style={styles.categoryBadgeText}>{meal.category}</Text>
                   </View>
-                  <Text style={styles.noteDate}>{note.date}</Text>
+                  <Text style={styles.mealDate}>{meal.date}</Text>
                 </View>
-                <Text style={styles.noteTitle}>{note.title}</Text>
+                <Text style={styles.mealTitle}>{meal.title}</Text>
                 <Text 
-                  style={styles.noteContent} 
-                  numberOfLines={expandedNoteId === note.id ? undefined : 2}
+                  style={styles.mealContent} 
+                  numberOfLines={expandedMealId === meal.id ? undefined : 2}
                 >
-                  {note.content}
+                  {meal.content}
                 </Text>
-                {expandedNoteId === note.id && (
-                  <View style={styles.noteActions}>
+                {expandedMealId === meal.id && (
+                  <View style={styles.mealActions}>
                     <IconButton
                       icon="pencil"
                       size={20}
-                      onPress={() => handleEditNote(note.id)}
+                      onPress={() => handleEditMeal(meal.id)}
                     />
                     <IconButton
                       icon="delete"
                       size={20}
-                      onPress={() => handleDeleteNote(note.id)}
+                      onPress={() => handleDeleteMeal(meal.id)}
                     />
                   </View>
                 )}
@@ -127,14 +128,14 @@ export default function NotesScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.addNoteContainer}>
+      <View style={styles.addMealContainer}>
         <Button
           mode="contained"
-          style={styles.addNoteButton}
+          style={styles.addMealButton}
           icon="plus"
-          onPress={handleAddNote}
+          onPress={handleAddMeal}
         >
-          Add Note
+          Add Item
         </Button>
       </View>
     </View>
@@ -145,6 +146,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    backgroundColor: '#ffffff',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333333',
   },
   categoryContainer: {
     paddingHorizontal: 16,
@@ -181,17 +193,17 @@ const styles = StyleSheet.create({
     color: '#333333',
     fontSize: 14,
   },
-  notesListContainer: {
+  mealsListContainer: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
   },
-  noteCard: {
+  mealCard: {
     marginBottom: 12,
     borderRadius: 12,
     elevation: 1,
   },
-  noteHeader: {
+  mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -207,22 +219,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  noteDate: {
+  mealDate: {
     fontSize: 12,
     color: '#999999',
   },
-  noteTitle: {
+  mealTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333333',
     marginBottom: 8,
   },
-  noteContent: {
+  mealContent: {
     fontSize: 14,
     color: '#666666',
     lineHeight: 20,
   },
-  noteActions: {
+  mealActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 8,
@@ -249,14 +261,14 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
   },
-  addNoteContainer: {
+  addMealContainer: {
     paddingHorizontal: 16,
     paddingVertical: 20,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
-  addNoteButton: {
+  addMealButton: {
     borderRadius: 12,
   },
 });

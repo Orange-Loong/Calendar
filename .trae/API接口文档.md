@@ -428,12 +428,14 @@
 
 **URL**：`/api/v1/tasks`
 **方法**：GET
-**描述**：获取任务列表
+**描述**：获取任务列表，包括task、schedule、note三种类型
 **认证**：需要在请求头中包含`Authorization: Bearer <token>`
 **查询参数**：
 - status: 任务状态（all, completed, pending），默认all
-- sortBy: 排序字段（dueDate, createdAt），默认dueDate
+- sortBy: 排序字段（endDate, createdAt），默认endDate
 - order: 排序顺序（asc, desc），默认asc
+- taskType: 任务类型（all, task, schedule, note），默认all
+- date: 日期（格式：YYYY-MM-DD），按日期筛选
 
 **响应**：
 ```json
@@ -445,15 +447,49 @@
         "id": "65a1b2c3d4e5f6g7h8i9j0k4",
         "title": "完成项目报告",
         "description": "完成2025年项目报告",
-        "dueDate": "2026-01-15T00:00:00.000Z",
+        "taskType": "task",
+        "endDate": "2026-01-15T00:00:00.000Z",
+        "startTime": "09:00",
+        "endTime": "17:00",
+        "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "creatorId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "checkerId": "65a1b2c3d4e5f6g7h8i9j0k5",
+        "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
+        "completed": false,
+        "approved": false,
+        "priority": "high",
+        "reward": "",
+        "rewardType": "",
+        "points": 10,
+        "punishment": "",
+        "createdAt": "2026-01-10T00:00:00.000Z"
+      },
+      {
+        "id": "65a1b2c3d4e5f6g7h8i9j0k5",
+        "title": "周例会",
+        "description": "每周一上午的项目例会",
+        "taskType": "schedule",
+        "startDate": "2026-01-15T00:00:00.000Z",
+        "endDate": "2026-12-31T00:00:00.000Z",
+        "startTime": "10:00",
+        "endTime": "11:00",
+        "recurrence": "weekly",
+        "isRecurring": true,
         "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
         "creatorId": "65a1b2c3d4e5f6g7h8i9j0k1",
         "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
         "completed": false,
-        "priority": "high",
-        "repeat": "none",
-        "reward": "",
-        "punishment": "",
+        "priority": "medium",
+        "createdAt": "2026-01-10T00:00:00.000Z"
+      },
+      {
+        "id": "65a1b2c3d4e5f6g7h8i9j0k6",
+        "title": "会议纪要",
+        "description": "记录今天会议的重要事项",
+        "taskType": "note",
+        "endDate": "2026-01-15T00:00:00.000Z",
+        "creatorId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
         "createdAt": "2026-01-10T00:00:00.000Z"
       }
     ]
@@ -466,21 +502,54 @@
 
 **URL**：`/api/v1/tasks`
 **方法**：POST
-**描述**：创建新任务
+**描述**：创建新任务，支持task、schedule、note三种类型
 **认证**：需要在请求头中包含`Authorization: Bearer <token>`
 
-**请求体**：
+**请求体（task类型）**：
 ```json
 {
   "title": "完成项目报告",
   "description": "完成2025年项目报告",
-  "dueDate": "2026-01-15T00:00:00.000Z",
+  "taskType": "task",
+  "endDate": "2026-01-15T00:00:00.000Z",
+  "startTime": "09:00",
+  "endTime": "17:00",
   "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
   "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
   "priority": "high",
-  "repeat": "none",
   "reward": "",
+  "rewardType": "",
+  "points": 10,
   "punishment": ""
+}
+```
+
+**请求体（schedule类型）**：
+```json
+{
+  "title": "周例会",
+  "description": "每周一上午的项目例会",
+  "taskType": "schedule",
+  "startDate": "2026-01-15T00:00:00.000Z",
+  "endDate": "2026-12-31T00:00:00.000Z",
+  "startTime": "10:00",
+  "endTime": "11:00",
+  "recurrence": "weekly",
+  "isRecurring": true,
+  "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
+  "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
+  "priority": "medium"
+}
+```
+
+**请求体（note类型）**：
+```json
+{
+  "title": "会议纪要",
+  "description": "记录今天会议的重要事项",
+  "taskType": "note",
+  "endDate": "2026-01-15T00:00:00.000Z",
+  "familyId": "65a1b2c3d4e5f6g7h8i9j0k3"
 }
 ```
 
@@ -493,13 +562,15 @@
       "id": "65a1b2c3d4e5f6g7h8i9j0k4",
       "title": "完成项目报告",
       "description": "完成2025年项目报告",
-      "dueDate": "2026-01-15T00:00:00.000Z",
+      "taskType": "task",
+      "endDate": "2026-01-15T00:00:00.000Z",
+      "startTime": "09:00",
+      "endTime": "17:00",
       "assignedTo": "65a1b2c3d4e5f6g7h8i9j0k1",
       "creatorId": "65a1b2c3d4e5f6g7h8i9j0k1",
       "familyId": "65a1b2c3d4e5f6g7h8i9j0k3",
       "completed": false,
       "priority": "high",
-      "repeat": "none",
       "reward": "",
       "punishment": "",
       "createdAt": "2026-01-10T00:00:00.000Z"
@@ -954,4 +1025,13 @@
 
 ## 十、总结
 
-本文档详细定义了电子日历系统的API接口，包括认证、用户管理、日程管理、任务管理和家庭共享等模块。文档采用RESTful API设计风格，使用HTTP方法表示操作类型，包含请求/响应格式和示例。开发团队应严格按照本文档进行API开发，确保前后端交互的一致性和可靠性。
+本文档详细定义了电子日历系统的API接口，包括认证、用户管理、日程管理、任务管理、笔记管理、Meal&Grocery管理、家庭共享和积分管理等模块。文档采用RESTful API设计风格，使用HTTP方法表示操作类型，包含请求/响应格式和示例。开发团队应严格按照本文档进行API开发，确保前后端交互的一致性和可靠性。
+
+---
+
+**文档版本**：1.2
+**创建日期**：2026-01-12
+**更新日期**：2026-01-16
+**文档作者**：开发团队
+**审核状态**：待审核
+**审核人**：技术负责人
